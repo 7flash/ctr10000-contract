@@ -1,29 +1,43 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
-import "./opensea/ERC721Tradable.sol";
+import "./ERC721Tradable.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract CryptoTapeRecordings is ERC721Tradable, VRFConsumerBase {
+contract CTR10000 is ERC721Tradable, VRFConsumerBase {
     using SafeMath for uint256;
     using Counters for Counters.Counter;
 
-    enum Status { Deployed, GivenProvenanceHash, GivenStartingIndex, MintingCompleted, MetadataFrozen }
+    enum Status { Deployed, ProvenanceReceived, StartingIndexReceived, MintingCompleted, MetadataFrozen }
 
     uint16 public constant maxSupply = 10000;
 
-    uint8 public constant reservedLast = 69;
+    string public constant sourceURI = "ipfs://QmV21w66ZCE1hA4z4Skj59U4NVE5arCnYwCnuhNKHBsXgE";
 
-    Status public status;
+    function contractURI() public pure returns (string memory) {
+        return "ipfs://QmPz3qiu31CYL5Lvp64vUAszp98Ubu4RWjBPxtnpRtx1zv";
+    }
 
-    string public provenanceHash;
+    function baseTokenURI() override public view returns (string memory) {
+        if (currentStatus() == Status.MetadataFrozen) {
+            return tokenPermanentMetadataURI;
+        }
 
-    uint16 public startingIndex;
+        return tokenMutableMetadataURI;
+    }
+
+    function provenanceURI() public view returns (string memory) {
+        if (currentStatus() == Status.MintingCompleted || currentStatus() == Status.MetadataFrozen) {
+            return string(abi.encode("ipfs://", provenanceCID));
+        } else {
+            return provenanceCID;
+        }
+    }
 
     function currentStatus() public view returns (Status) {
-        if (bytes(tokenIPFSMetadataURI).length != 0) {
+        if (bytes(tokenPermanentMetadataURI).length != 0) {
             return Status.MetadataFrozen;
         }
 
@@ -32,73 +46,78 @@ contract CryptoTapeRecordings is ERC721Tradable, VRFConsumerBase {
         }
 
         if (startingIndex != 0) {
-            return Status.GivenStartingIndex;
+            return Status.StartingIndexReceived;
         }
 
-        if (bytes(provenanceHash).length != 0) {
-            return Status.GivenProvenanceHash;
+        if (bytes(provenanceCID).length != 0) {
+            return Status.ProvenanceReceived;
         }
         
         return Status.Deployed;
     }
 
-    address internal constant ctrSigner = 0x934eAa5AaB2cdEa7Db6E2396525D7E3Cb8A05Ed9;
-
-    uint256 internal constant linkFee = 2 * 10 ** 18;
-
-    bytes32 internal constant keyHash = 0xAA77729D3466CA35AE8D28B3BBAC7CC36A5031EFDC430821C02BC31A238AF445;
-    
-    string internal constant contractMetadataURI = "ipfs://QmPz3qiu31CYL5Lvp64vUAszp98Ubu4RWjBPxtnpRtx1zv";
-    
-    string internal constant tokenAPIMetadataURI = "https://metadata.cryptotaperecordings.com/";
-    
-    string internal tokenIPFSMetadataURI;
-
-    constructor()
-        ERC721Tradable("Crypto Tape Recordings", "CTR", 0xa5409ec958C83C3f309868babACA7c86DCB077c1) // Proxy Registry Address
+    constructor(
+        string memory _tokenName,
+        string memory _tokenSymbol,
+        string memory _tokenMutableMetadataURI,
+        address _proxyRegistry,
+        address _vrfCoordinator,
+        address _linkToken,
+        address _ctrSigner,
+        uint256 _linkFee,
+        bytes32 _linkKeyHash
+    )
+        ERC721Tradable(_tokenName, _tokenSymbol, _proxyRegistry)
         VRFConsumerBase(
-            0xf0d54349aDdcf704F77AE15b96510dEA15cb7952, // VRF Coordinator
-            0x514910771AF9Ca656af840dff83E8264EcF986CA  // LINK Token
+            _vrfCoordinator,
+            _linkToken
         )
-    {}
-
-    function baseTokenURI() override public view returns (string memory) {
-        if (status == Status.MetadataFrozen) {
-            return tokenIPFSMetadataURI;
-        }
-
-        return tokenAPIMetadataURI;
+    {
+        ctrSigner = _ctrSigner;
+        linkFee = _linkFee;
+        linkKeyHash = _linkKeyHash;
+        tokenMutableMetadataURI = _tokenMutableMetadataURI;
     }
 
-    function contractURI() public pure returns (string memory) {
-        return contractMetadataURI;
+    string public provenanceCID;
+
+    function setProvenance(string memory _provenanceCID) public onlyOwner {
+        require(currentStatus() == Status.Deployed);
+
+        provenanceCID = _provenanceCID;
     }
 
-    function setProvenanceHash(string memory _provenanceHash) public onlyOwner {
-        require(status == Status.Deployed);
-
-        provenanceHash = _provenanceHash;
-    }
+    uint256 internal linkFee;
+    bytes32 internal linkKeyHash;
 
     function requestStartingIndex() public onlyOwner returns (bytes32 requestId) {
         require(LINK.balanceOf(address(this)) >= linkFee);
 
-        return requestRandomness(keyHash, linkFee);
+        return requestRandomness(linkKeyHash, linkFee);
     }
+
+    uint256 public startingIndex;
 
     function fulfillRandomness(bytes32, uint256 randomness) internal override {
-        require(status == Status.GivenProvenanceHash);
+        require(currentStatus() == Status.ProvenanceReceived);
         
-        startingIndex = uint16(randomness.mod(maxSupply - reservedLast).add(1));
+        startingIndex = randomness % maxSupply;
     }
 
-    function testIncreaseTokenId(uint8 n) public onlyOwner {
-        for (uint8 i = 0; i < n; i++)
-            _nextTokenId.increment();
+    mapping (uint256 => address) public creatorOf;
+
+    uint96 public creatorRoyaltyInHundredthPercent = 250;
+
+    function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address, uint256) {
+        uint256 creatorRoyalty = salePrice.mul(creatorRoyaltyInHundredthPercent).div(10000);
+        
+        return (creatorOf[tokenId], creatorRoyalty);
     }
+
+    address internal ctrSigner;
 
     function mint(bytes memory ctrSignature) public {
-        require(status == Status.GivenStartingIndex);
+        require(currentStatus() == Status.StartingIndexReceived);
 
         bytes32 messageHash = keccak256(abi.encodePacked(msg.sender, balanceOf(msg.sender)));
 
@@ -114,11 +133,16 @@ contract CryptoTapeRecordings is ERC721Tradable, VRFConsumerBase {
         _nextTokenId.increment();
 
         _safeMint(msg.sender, currentTokenId);
+
+        creatorOf[currentTokenId] = msg.sender;
     }
 
-    function freezeMetadata(string memory _tokenIPFSMetadataURI) public onlyOwner {
-        require(status == Status.MintingCompleted);
+    string internal tokenMutableMetadataURI;
+    string internal tokenPermanentMetadataURI;
 
-        tokenIPFSMetadataURI = _tokenIPFSMetadataURI;
+    function freezeMetadata(string memory _tokenPermanentMetadataURI) public onlyOwner {
+        require(currentStatus() == Status.MintingCompleted);
+
+        tokenPermanentMetadataURI = _tokenPermanentMetadataURI;
     }
 }
