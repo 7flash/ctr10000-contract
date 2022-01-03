@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.4;
 
 import "./ERC721Tradable.sol";
@@ -8,8 +8,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract CTR10000 is ERC721Tradable, VRFConsumerBase {
     using SafeMath for uint256;
-    using Counters for Counters.Counter;
 
+    using Counters for Counters.Counter;
+ 
     enum Status { Deployed, ProvenanceReceived, StartingIndexReceived, MintingCompleted, MetadataFrozen }
 
     uint16 public constant maxSupply = 10000;
@@ -30,7 +31,7 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
 
     function provenanceURI() public view returns (string memory) {
         if (currentStatus() == Status.MintingCompleted || currentStatus() == Status.MetadataFrozen) {
-            return string(abi.encode("ipfs://", provenanceCID));
+            return string(abi.encodePacked("ipfs://", bytes(provenanceCID)));
         } else {
             return provenanceCID;
         }
