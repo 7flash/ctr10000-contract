@@ -13,7 +13,7 @@ module.exports = {
     live: {
       url: nodeUrl,
       accounts: [
-        '00bf86fffc5983d68bf25f6db8fc25151c8b315819c58d0da66c313d721747f2'
+        process.env.OWNER_PRIVATE_KEY
       ]
     }
   },

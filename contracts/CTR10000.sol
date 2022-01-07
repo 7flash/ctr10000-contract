@@ -15,10 +15,13 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
 
     uint16 public constant maxSupply = 10000;
 
-    string public constant sourceURI = "ipfs://QmV21w66ZCE1hA4z4Skj59U4NVE5arCnYwCnuhNKHBsXgE";
+    string internal tokenMutableMetadataURI;
+    string internal tokenPermanentMetadataURI;
 
-    function contractURI() public pure returns (string memory) {
-        return "ipfs://QmPz3qiu31CYL5Lvp64vUAszp98Ubu4RWjBPxtnpRtx1zv";
+    function testFinalize() public onlyOwner {
+        while(_nextTokenId.current() <= maxSupply) {
+            _nextTokenId.increment();
+        }
     }
 
     function baseTokenURI() override public view returns (string memory) {
@@ -29,12 +32,14 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
         return tokenMutableMetadataURI;
     }
 
-    function provenanceURI() public view returns (string memory) {
-        if (currentStatus() == Status.MintingCompleted || currentStatus() == Status.MetadataFrozen) {
-            return string(abi.encodePacked("ipfs://", bytes(provenanceCID)));
-        } else {
-            return provenanceCID;
-        }
+    string public contractMetadataURI;
+
+    function setContractMetadata(string memory _contractMetadataURI) public onlyOwner {
+        contractMetadataURI = _contractMetadataURI;
+    }
+
+    function contractURI() public view returns (string memory) {
+        return contractMetadataURI;
     }
 
     function currentStatus() public view returns (Status) {
@@ -88,6 +93,14 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
         provenanceCID = _provenanceCID;
     }
 
+    function provenanceURI() public view returns (string memory) {
+        if (currentStatus() == Status.MintingCompleted || currentStatus() == Status.MetadataFrozen) {
+            return string(abi.encodePacked("ipfs://", bytes(provenanceCID)));
+        } else {
+            return provenanceCID;
+        }
+    }
+
     uint256 internal linkFee;
     bytes32 internal linkKeyHash;
 
@@ -107,7 +120,11 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
 
     mapping (uint256 => address) public creatorOf;
 
-    uint96 public creatorRoyaltyInHundredthPercent = 250;
+    uint16 public creatorRoyaltyInHundredthPercent;
+
+    function setRoyalty(uint16 royalty) public onlyOwner {
+        creatorRoyaltyInHundredthPercent = royalty;
+    }
 
     function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address, uint256) {
         uint256 creatorRoyalty = salePrice.mul(creatorRoyaltyInHundredthPercent).div(10000);
@@ -137,9 +154,6 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
 
         creatorOf[currentTokenId] = msg.sender;
     }
-
-    string internal tokenMutableMetadataURI;
-    string internal tokenPermanentMetadataURI;
 
     function freezeMetadata(string memory _tokenPermanentMetadataURI) public onlyOwner {
         require(currentStatus() == Status.MintingCompleted);

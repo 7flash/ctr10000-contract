@@ -8,7 +8,7 @@ const linkFee = process.env.LINK_FEE
 const linkKeyHash = process.env.LINK_KEY_HASH
 
 const tokenName = "CTR10000";
-const tokenSymbol = "CTR10000";
+const tokenSymbol = "CTR";
 const tokenMutableMetadataURI = "https://metadata.ctr10000.com/";
 
 module.exports = [

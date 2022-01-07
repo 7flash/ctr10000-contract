@@ -5,7 +5,7 @@ const { ethers } = require('hardhat');
 async function mintToken() {
     const [minter] = await ethers.getSigners();
 
-    const signature = '0x5589656715b6b984e2066051439400897b709450b31ee9a643cf4905e0453fce1424b0e0207a79952bbcf0da1fc969bc4a8846c3bdafb128405f98264b02c2af1b'
+    const signature = '0x7b29581e99b5637dc62d4153169a55972f9f707bd0eb761d475a1fe827bf2aad7d16ebde433e71ee6acf1e23c40f96396be13e875048d84393427ecedf229ffe1b'
 
     const contract = new ethers.Contract(
         process.env.CTR_CONTRACT,
