@@ -18,12 +18,6 @@ contract CTR10000 is ERC721Tradable, VRFConsumerBase {
     string internal tokenMutableMetadataURI;
     string internal tokenPermanentMetadataURI;
 
-    function testFinalize() public onlyOwner {
-        while(_nextTokenId.current() <= maxSupply) {
-            _nextTokenId.increment();
-        }
-    }
-
     function baseTokenURI() override public view returns (string memory) {
         if (currentStatus() == Status.MetadataFrozen) {
             return tokenPermanentMetadataURI;
