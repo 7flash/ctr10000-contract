@@ -11,7 +11,9 @@ async function setMetadata() {
         owner
     );
 
-    const metadataURI = 'ipfs://QmaQU1eFztppyhwpMVf3N3WfKQFfHNLJVJYAh7njPwREMb';
+    const metadataURI = `ipfs://${process.env.CONTRACT_METADATA_URI}`;
+
+    console.log({ metadataURI })
 
     const { hash } = await contract.setContractMetadata(
         metadataURI
