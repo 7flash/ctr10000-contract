@@ -16,14 +16,15 @@ module.exports = {
     }
   },
   networks: {
-    live: {
-      url: process.env.NODE_URL,
-      accounts: [
-        process.env.OWNER_PRIVATE_KEY
-      ],
-      gasPrice: Number(process.env.GAS_PRICE),
-      gasMultiplier: 1.1
-    }
+    hardhat: {},
+    // live: {
+    //   url: process.env.NODE_URL,
+    //   accounts: [
+    //     process.env.OWNER_PRIVATE_KEY
+    //   ],
+    //   gasPrice: Number(process.env.GAS_PRICE),
+    //   gasMultiplier: 1.1
+    // }
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY
